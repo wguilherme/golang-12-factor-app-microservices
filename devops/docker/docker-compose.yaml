@@ -1,0 +1,41 @@
+services:
+  worker_flow:
+    build:
+      context: ../../
+      dockerfile: devops/docker/Dockerfile
+    container_name: worker_flow
+    command: ${MAKE_COMMAND:-run}
+    restart: always
+    volumes:
+      - "../../:/opt/app"
+    env_file:
+      - ${ENV_FILE:-../../.env}
+    ports:
+      - ${WORKER_FLOW_PORT}:${WORKER_FLOW_PORT}
+      - 2345:2345
+    networks:
+      - core
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  worker_post:
+    build:
+      context: ../../
+      dockerfile: devops/docker/Dockerfile
+    container_name: worker_post
+    command: ${MAKE_COMMAND:-run}
+    restart: always
+    volumes:
+      - "../../:/opt/app"
+    env_file:
+      - ${ENV_FILE:-../../.env}
+    ports:
+      - ${WORKER_POST_PORT}:${WORKER_POST_PORT}
+      - 2346:2345
+    networks:
+      - core
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+networks:
+  core:
+    driver: bridge
