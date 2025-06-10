@@ -3,7 +3,8 @@ SHELL := /bin/sh
 
 env?=.env
 logging_level?=info
-app?=worker_flow
+app?=worker_flow # worker_flow or worker_post
+target?=debug # debug or prod
 
 include $(env)
 
@@ -31,16 +32,29 @@ debug:
 
 .PHONY: up
 up: down
-	docker compose --env-file $(env) --file devops/docker/docker-compose.yaml up \
+	TARGET=$(target) docker compose --env-file $(env) --file devops/docker/docker-compose.yaml up \
 			--build \
 			--detach
 
 .PHONY: down
 down:
-	docker compose --env-file $(env) --file devops/docker/docker-compose.yaml down \
+	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml down \
 			--volumes
 
 .PHONY: logs
 logs:
-	docker compose --env-file $(env) --file devops/docker/docker-compose.yaml logs $(app) \
+	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml logs $(app) \
 			--follow
+
+.PHONY: logs-all
+logs-all:
+	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml logs \
+			--follow
+
+.PHONY: up-dev
+up-dev:
+	@$(MAKE) up target=debug app=$(app)
+
+.PHONY: up-prod
+up-prod:
+	@$(MAKE) up target=prod app=$(app)
