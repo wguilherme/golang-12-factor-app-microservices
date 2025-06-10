@@ -3,13 +3,18 @@ services:
     build:
       context: ../../
       dockerfile: devops/docker/Dockerfile
+      args:
+        APP: worker_flow
+        PORT: ${WORKER_FLOW_PORT}
+      target: ${TARGET:-debug}
     container_name: worker_flow
-    command: ${MAKE_COMMAND:-run}
     restart: always
     volumes:
-      - "../../:/opt/app"
+      - "../../:/app"
     env_file:
       - ${ENV_FILE:-../../.env}
+    environment:
+      - APP=worker_flow
     ports:
       - ${WORKER_FLOW_PORT}:${WORKER_FLOW_PORT}
       - 2345:2345
@@ -17,17 +22,23 @@ services:
       - core
     extra_hosts:
       - "host.docker.internal:host-gateway"
+  
   worker_post:
     build:
       context: ../../
       dockerfile: devops/docker/Dockerfile
+      args:
+        APP: worker_post
+        PORT: ${WORKER_POST_PORT}
+      target: ${TARGET:-debug}
     container_name: worker_post
-    command: ${MAKE_COMMAND:-run}
     restart: always
     volumes:
-      - "../../:/opt/app"
+      - "../../:/app"
     env_file:
       - ${ENV_FILE:-../../.env}
+    environment:
+      - APP=worker_post
     ports:
       - ${WORKER_POST_PORT}:${WORKER_POST_PORT}
       - 2346:2345
