@@ -22,3 +22,6 @@
 
 # env
 .env
+
+# reports
+reports/
