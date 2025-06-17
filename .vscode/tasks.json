@@ -19,6 +19,22 @@
       "problemMatcher": []
     },
     {
+      "label": "Stop Docker Services",
+      "type": "shell",
+      "command": "make",
+      "args": ["down"],
+      "group": "build",
+      "presentation": {
+        "echo": false,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": false,
+        "clear": false
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "🛑 Docker: Stop All Services",
       "type": "shell",
       "command": "make",

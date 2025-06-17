@@ -77,6 +77,11 @@ docker-build:
 	@echo "Building all services..."
 	@$(COMPOSE_CMD) build --parallel
 
+.PHONY: docker-build-debug
+docker-build-debug:
+	@echo "Building all services for debug..."
+	@TARGET=debug $(COMPOSE_CMD) build --parallel
+
 .PHONY: docker-build-service
 docker-build-service:
 	@echo "Building service: $(app)"
@@ -84,25 +89,36 @@ docker-build-service:
 
 .PHONY: up
 up: down docker-build
-	@echo "🚀 Starting services with Hot Reload + Debug support..."
+	@echo "🚀 Starting services with Hot Reload..."
 	@$(COMPOSE_CMD) up --detach
 	@echo ""
-	@echo "✅ Services running with unified development environment:"
+	@echo "✅ Services running with hot reload:"
 	@echo ""
 	@echo "🔥 HOT RELOAD (Air):"
 	@echo "   📝 Edit files in services/ → automatic rebuild & restart"
 	@echo "   📊 Watch logs: make logs app=worker_flow"
 	@echo ""
+	@echo "🌐 SERVICES:"
+	@echo "   • worker_flow: http://localhost:8080/health/live"
+	@echo "   • worker_post: http://localhost:8081/health/live"
+	@echo ""
+	@echo "🐛 For debugging, use: make up-debug"
+
+.PHONY: up-debug
+up-debug: down docker-build-debug
+	@echo "🚀 Starting services with Hot Reload + Debug support..."
+	@TARGET=debug $(COMPOSE_CMD) up --detach
+	@echo ""
+	@echo "✅ Services running with debug enabled:"
+	@echo ""
 	@echo "🐛 DEBUG ATTACH (Delve):"
 	@echo "   🎯 Set breakpoints in VS Code"
-	@echo "   🔗 Use: 'Docker: Attach worker_flow' configuration"
+	@echo "   🔗 Use: 'Debug worker_flow (remote)' configuration"
 	@echo "   📍 Debug ports: worker_flow:2345, worker_post:2346"
 	@echo ""
 	@echo "🌐 SERVICES:"
 	@echo "   • worker_flow: http://localhost:8080/health/live"
 	@echo "   • worker_post: http://localhost:8081/health/live"
-	@echo ""
-	@echo "💡 Best of both worlds: Code → Save → Hot Reload + Debug Ready!"
 
 .PHONY: up-service
 up-service:
