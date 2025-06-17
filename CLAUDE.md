@@ -43,10 +43,10 @@ This is a Go microservices monorepo using Go Workspaces for 12-factor app princi
 
 ### Docker Operations
 - `make up` - Start all services with Docker Compose
-- `make up-dev` - Start in debug mode
-- `make up-prod` - Start in production mode
+- `make up-debug` - Start in debug mode
+- `make up-service app=worker_flow` - Start single service
 - `make down` - Stop all services
-- `make logs` - View logs for specific service
+- `make logs app=worker_flow` - View logs for specific service
 - `make logs-all` - View all service logs
 
 ### Security Scanning
@@ -72,7 +72,7 @@ Each microservice provides:
 
 ## Dependencies
 
-- Go 1.23.6 with Go Workspaces
+- Go 1.24.0 with Go Workspaces
 - **Shared module**: github.com/go-chi/chi/v5 for HTTP routing
 - **Services**: Independent modules consuming shared code
 - **Tools**: Development tools (gosec, delve, govulncheck)
