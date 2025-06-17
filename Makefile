@@ -9,20 +9,38 @@ target?=debug # debug or prod
 
 include $(env)
 
+# Go Workspace commands
+.PHONY: workspace-sync
+workspace-sync:
+	@go work sync
+
+.PHONY: workspace-use
+workspace-use:
+	@echo "Current workspace modules:"
+	@go list -m
+
 .PHONY: test
 test:
-	@CGO_ENABLED=0
-	@GOOS=linux
-	@go test -v ./... -coverprofile ./cover.out
+	@echo "Running tests for all workspace modules..."
+	@go work sync
+	@CGO_ENABLED=0 GOOS=linux go test ./... -coverprofile ./cover.out
 	@go tool cover -html=cover.out
+
+.PHONY: test-service
+test-service:
+	@echo "Testing service: $(app)"
+	@cd services/$(app) && CGO_ENABLED=0 GOOS=linux go test ./... -v
 
 .PHONY: run
 run:
-	@GOEXPERIMENT=noregabi go run ./cmd/$(app)/main.go -logging_level=$(logging_level)
+	@echo "Running service: $(app)"
+	@cd services/$(app) && GOEXPERIMENT=noregabi go run . -logging_level=$(logging_level)
 
 .PHONY: debug
 debug:
-	@$(shell which go) build -o ./build/$(app) ./cmd/$(app)/main.go
+	@echo "Building service for debug: $(app)"
+	@mkdir -p build
+	@cd services/$(app) && go build -o ../../build/$(app) .
 	@$(shell go env GOPATH)/bin/dlv \
 		--listen=:2345 \
 		--api-version=2 \
@@ -30,6 +48,22 @@ debug:
 		--log=true \
 		--accept-multiclient \
 			exec ./build/$(app) -logging_level=$(logging_level)
+
+.PHONY: build
+build:
+	@echo "Building service: $(app)"
+	@mkdir -p build
+	@cd services/$(app) && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$(app) .
+
+.PHONY: build-all
+build-all:
+	@echo "Building all services..."
+	@mkdir -p build
+	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
+	for app in $$APPS; do \
+		echo "Building $$app..."; \
+		cd services/$$app && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$$app . && cd ../..; \
+	done
 
 .PHONY: up
 up: down
@@ -79,7 +113,7 @@ gosec:
 	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
 	for app in $$APPS; do \
 		echo "\033[1;33mRunning gosec for $$app...\033[0m"; \
-		gosec -fmt=json -out=reports/gosec/gosec-$$app-report.json ./cmd/$$app/... ./internal/$$app/... || \
+		gosec -fmt=json -out=reports/gosec/gosec-$$app-report.json ./services/$$app/... || \
 		(echo "\033[1;31mSecurity issues were detected in $$app!\033[0m"); \
 	done
 
@@ -121,6 +155,6 @@ govulncheck:
 	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
 	for app in $$APPS; do \
 		echo "\033[1;33mRunning govulncheck for $$app...\033[0m"; \
-		govulncheck -json ./cmd/$$app/... ./internal/$$app/... > reports/govulncheck/govulncheck-$$app-report.json || \
+		cd services/$$app && govulncheck -json ./... > ../../reports/govulncheck/govulncheck-$$app-report.json && cd ../.. || \
 		(echo "\033[1;31mVulnerabilities were detected in $$app!\033[0m"); \
 	done

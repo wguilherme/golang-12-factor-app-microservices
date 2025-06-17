@@ -7,3 +7,20 @@ Examples:
 * https://github.com/openshift/origin/tree/master/test (test data is in the `/testdata` subdirectory)
 
 
+
+publisher
+	publicar AMQP
+	publicar PubSub
+
+consumer
+	consumidor AMQP
+	consumidor PubSub
+
+api
+	rotas post
+	webhook
+
+angular-po-ui
+
+
+publisher=>consumer=>reactive-webhook
