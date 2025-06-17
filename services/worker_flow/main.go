@@ -12,6 +12,7 @@ func main() {
 	cfg := config.LoadServiceConfig("WORKER_FLOW", "8080")
 
 	http.HandleFunc("/health/live", health.LivenessHandler("worker_flow"))
+
 	http.HandleFunc("/health/ready", health.ReadinessHandler("worker_flow"))
 
 	cfg.LogStartup()

@@ -84,30 +84,25 @@ docker-build-service:
 
 .PHONY: up
 up: down docker-build
-	@echo "Starting all services in $(target) mode..."
-	@TARGET=$(target) ENVIRONMENT=development $(COMPOSE_CMD) up --detach
-
-.PHONY: up-dev
-up-dev:
-	@echo "Starting services in development mode with hot reload..."
-	@$(MAKE) up target=development
+	@echo "🚀 Starting services with Hot Reload + Debug support..."
+	@$(COMPOSE_CMD) up --detach
 	@echo ""
-	@echo "🔥 Hot reload enabled with Air!"
-	@echo "📝 Edit files in services/ and see changes instantly"
-	@echo "📊 Check logs: make logs app=worker_flow"
-	@echo "🌐 Access services:"
-	@echo "   - worker_flow: http://localhost:8080/health/live"
-	@echo "   - worker_post: http://localhost:8081/health/live"
-
-.PHONY: up-debug
-up-debug:
-	@echo "Starting services in debug mode..."
-	@$(MAKE) up target=debug
-
-.PHONY: up-prod
-up-prod:
-	@echo "Starting services in production mode..."
-	@$(MAKE) up target=production
+	@echo "✅ Services running with unified development environment:"
+	@echo ""
+	@echo "🔥 HOT RELOAD (Air):"
+	@echo "   📝 Edit files in services/ → automatic rebuild & restart"
+	@echo "   📊 Watch logs: make logs app=worker_flow"
+	@echo ""
+	@echo "🐛 DEBUG ATTACH (Delve):"
+	@echo "   🎯 Set breakpoints in VS Code"
+	@echo "   🔗 Use: 'Docker: Attach worker_flow' configuration"
+	@echo "   📍 Debug ports: worker_flow:2345, worker_post:2346"
+	@echo ""
+	@echo "🌐 SERVICES:"
+	@echo "   • worker_flow: http://localhost:8080/health/live"
+	@echo "   • worker_post: http://localhost:8081/health/live"
+	@echo ""
+	@echo "💡 Best of both worlds: Code → Save → Hot Reload + Debug Ready!"
 
 .PHONY: up-service
 up-service:

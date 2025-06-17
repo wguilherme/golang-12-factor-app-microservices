@@ -1,16 +1,15 @@
-# Simple Dockerfile for Go Workspace Monorepo
+# Unified Dockerfile for Go Workspace Monorepo with Hot Reload + Debug
 ARG APP=worker_flow
 ARG PORT=8080
 
-# Development stage
 FROM golang:1.24-alpine3.20 AS development
 ARG APP
 WORKDIR /workspace
 
-# Install basic tools
+# Install tools
 RUN apk --no-cache add ca-certificates git make
 
-# Copy workspace files
+# Copy workspace files for dependency resolution
 COPY go.work go.work.sum* ./
 COPY shared/ ./shared/
 COPY services/ ./services/
@@ -23,14 +22,19 @@ RUN go work sync
 RUN go install github.com/go-delve/delve/cmd/dlv@latest && \
     go install github.com/air-verse/air@latest
 
-# Expose debug port
-EXPOSE 2345
+# Create symlinks for easier access
+RUN ln -s /go/bin/dlv /usr/local/bin/dlv && \
+    ln -s /go/bin/air /usr/local/bin/air
 
-# Working directory for development 
-WORKDIR /workspace
+# Verify installations
+RUN which dlv && dlv version && \
+    which air && air -v
 
-# The source code will be mounted via volume
-# Air will be started via docker-compose command
+# Expose service and debug ports
+EXPOSE ${PORT} 2345
+
+# The source code will be mounted via volume for hot reload
+# Air will be started via docker-compose command with debug symbols enabled
 
 # Production build stage
 FROM golang:1.24-alpine3.20 AS builder

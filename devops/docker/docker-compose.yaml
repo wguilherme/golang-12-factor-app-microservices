@@ -1,74 +1,38 @@
-# Simple Docker Compose for Go Workspace Monorepo
 services:
   worker-flow:
     build:
       context: ../../
-      dockerfile: devops/docker/Dockerfile.simple
-      target: ${TARGET:-development}
-      args:
-        APP: worker_flow
-        PORT: ${WORKER_FLOW_PORT:-8080}
+      dockerfile: devops/docker/Dockerfile
     container_name: worker-flow
     ports:
-      - "${WORKER_FLOW_PORT:-8080}:${WORKER_FLOW_PORT:-8080}"
-      - "2345:2345"  # Debug port
+      - "8080:8080"
     environment:
-      - WORKER_FLOW_PORT=${WORKER_FLOW_PORT:-8080}
-      - CGO_ENABLED=0
-    working_dir: /workspace
-    command: ["air", "-c", "services/worker_flow/.air.toml"]
+      - WORKER_FLOW_PORT=8080
+    working_dir: /workspace/services/worker_flow
+    command: ["air"]
     volumes:
-      - type: bind
-        source: ../../
-        target: /workspace
-        consistency: cached
+      - ../../:/workspace
     networks:
       - microservices
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${WORKER_FLOW_PORT:-8080}/health/live", "||", "exit", "1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
   
   worker-post:
     build:
       context: ../../
-      dockerfile: devops/docker/Dockerfile.simple
-      target: ${TARGET:-development}
-      args:
-        APP: worker_post
-        PORT: ${WORKER_POST_PORT:-8081}
+      dockerfile: devops/docker/Dockerfile
     container_name: worker-post
     ports:
-      - "${WORKER_POST_PORT:-8081}:${WORKER_POST_PORT:-8081}"
-      - "2346:2345"  # Debug port
+      - "8081:8081"
     environment:
-      - WORKER_POST_PORT=${WORKER_POST_PORT:-8081}
-      - CGO_ENABLED=0
-    working_dir: /workspace
-    command: ["air", "-c", "services/worker_post/.air.toml"]
+      - WORKER_POST_PORT=8081
+    working_dir: /workspace/services/worker_post
+    command: ["air"]
     volumes:
-      - type: bind
-        source: ../../
-        target: /workspace
-        consistency: cached
+      - ../../:/workspace
     networks:
       - microservices
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${WORKER_POST_PORT:-8081}/health/live", "||", "exit", "1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
 networks:
   microservices:
     driver: bridge
-    name: microservices-network
-
-volumes:
-  go-cache:
-    name: go-build-cache
