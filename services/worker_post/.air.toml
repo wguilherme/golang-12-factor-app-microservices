@@ -1,0 +1,23 @@
+# Configuração do Air para worker_post
+root = "/workspace"
+tmp_dir = "/workspace/services/worker_post/tmp"
+
+[build]
+# Comando para construir o binário
+cmd = "go build -o ./services/worker_post/tmp/worker_post ./services/worker_post/main.go"
+# Caminho do binário que o Air vai executar
+bin = "/workspace/services/worker_post/tmp/worker_post"
+
+# Extensões de arquivo para monitorar
+include_ext = ["go", "toml", "yaml", "yml"]
+# Diretórios para não monitorar
+exclude_dir = ["vendor", "node_modules", "tmp", "devops", ".git", "reports"]
+
+[log]
+# Nível de log para o Air
+level = "info"
+time = true
+
+[misc]
+# Limpa o diretório tmp ao finalizar
+clean_on_exit = true

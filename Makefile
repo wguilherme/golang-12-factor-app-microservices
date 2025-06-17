@@ -91,6 +91,13 @@ up: down docker-build
 up-dev:
 	@echo "Starting services in development mode with hot reload..."
 	@$(MAKE) up target=development
+	@echo ""
+	@echo "🔥 Hot reload enabled with Air!"
+	@echo "📝 Edit files in services/ and see changes instantly"
+	@echo "📊 Check logs: make logs app=worker_flow"
+	@echo "🌐 Access services:"
+	@echo "   - worker_flow: http://localhost:8080/health/live"
+	@echo "   - worker_post: http://localhost:8081/health/live"
 
 .PHONY: up-debug
 up-debug:
@@ -166,6 +173,22 @@ health:
 health-service:
 	@echo "Checking health of service: $(app)"
 	@docker inspect --format='{{.State.Health.Status}}' $(subst _,-,$(app)) || echo "No health check configured"
+
+# =============================================================================
+# Hot Reload Development Commands
+# =============================================================================
+
+.PHONY: dev-test
+dev-test:
+	@echo "Testing hot reload functionality..."
+	@echo "Current time: $(shell date)" 
+	@curl -s http://localhost:8080/health/live | jq . || echo "Service not responding"
+	@curl -s http://localhost:8081/health/live | jq . || echo "Service not responding"
+
+.PHONY: dev-watch
+dev-watch:
+	@echo "Watching logs for hot reload changes..."
+	@$(COMPOSE_CMD) logs --follow --tail=50
 
 
 

@@ -14,6 +14,9 @@ services:
       - "2345:2345"  # Debug port
     environment:
       - WORKER_FLOW_PORT=${WORKER_FLOW_PORT:-8080}
+      - CGO_ENABLED=0
+    working_dir: /workspace
+    command: ["air", "-c", "services/worker_flow/.air.toml"]
     volumes:
       - type: bind
         source: ../../
@@ -43,6 +46,9 @@ services:
       - "2346:2345"  # Debug port
     environment:
       - WORKER_POST_PORT=${WORKER_POST_PORT:-8081}
+      - CGO_ENABLED=0
+    working_dir: /workspace
+    command: ["air", "-c", "services/worker_post/.air.toml"]
     volumes:
       - type: bind
         source: ../../
