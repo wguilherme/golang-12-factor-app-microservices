@@ -1,0 +1,73 @@
+# Simple Dockerfile for Go Workspace Monorepo
+ARG APP=worker_flow
+ARG PORT=8080
+
+# Development stage
+FROM golang:1.23-alpine3.20 AS development
+ARG APP
+WORKDIR /workspace
+
+# Install basic tools
+RUN apk --no-cache add ca-certificates git make
+
+# Copy workspace files
+COPY go.work go.work.sum* ./
+COPY shared/ ./shared/
+COPY services/ ./services/
+COPY tools/ ./tools/
+
+# Sync workspace
+RUN go work sync
+
+# Install development tools
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Expose debug port
+EXPOSE 2345
+
+# Create start script with proper variable expansion
+ARG APP
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'echo "Starting service: '${APP}'"' >> /start.sh && \
+    echo 'echo "Current directory: $(pwd)"' >> /start.sh && \
+    echo 'cd /workspace/services/'${APP} >> /start.sh && \
+    echo 'echo "Changed to: $(pwd)"' >> /start.sh && \
+    echo 'echo "Files in service directory:"' >> /start.sh && \
+    echo 'ls -la' >> /start.sh && \
+    echo 'echo "Running go run..."' >> /start.sh && \
+    echo 'go run .' >> /start.sh && \
+    chmod +x /start.sh
+
+# Development command
+CMD ["/start.sh"]
+
+# Production build stage
+FROM golang:1.23-alpine3.20 AS builder
+ARG APP
+WORKDIR /workspace
+
+# Install build dependencies
+RUN apk --no-cache add ca-certificates git
+
+# Copy source
+COPY go.work go.work.sum* ./
+COPY shared/ ./shared/
+COPY services/ ./services/
+COPY tools/ ./tools/
+
+# Build
+RUN go work sync && \
+    cd services/${APP} && \
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/service .
+
+# Production stage
+FROM gcr.io/distroless/static:nonroot AS production
+ARG APP
+ARG PORT
+
+COPY --from=builder /app/service /app/service
+
+EXPOSE ${PORT}
+USER 65532:65532
+
+ENTRYPOINT ["/app/service"]

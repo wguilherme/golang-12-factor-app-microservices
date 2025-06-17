@@ -65,34 +65,107 @@ build-all:
 		cd services/$$app && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$$app . && cd ../..; \
 	done
 
+# =============================================================================
+# Docker Commands - Monorepo Optimized
+# =============================================================================
+
+COMPOSE_FILE := devops/docker/docker-compose.yaml
+COMPOSE_CMD := docker compose --env-file $(env) --file $(COMPOSE_FILE)
+
+.PHONY: docker-build
+docker-build:
+	@echo "Building all services..."
+	@$(COMPOSE_CMD) build --parallel
+
+.PHONY: docker-build-service
+docker-build-service:
+	@echo "Building service: $(app)"
+	@$(COMPOSE_CMD) build $(subst _,-,$(app))
+
 .PHONY: up
-up: down
-	TARGET=$(target) docker compose --env-file $(env) --file devops/docker/docker-compose.yaml up \
-			--build \
-			--detach
-
-.PHONY: down
-down:
-	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml down \
-			--volumes
-
-.PHONY: logs
-logs:
-	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml logs $(app) \
-			--follow
-
-.PHONY: logs-all
-logs-all:
-	@docker compose --env-file $(env) --file devops/docker/docker-compose.yaml logs \
-			--follow
+up: down docker-build
+	@echo "Starting all services in $(target) mode..."
+	@TARGET=$(target) ENVIRONMENT=development $(COMPOSE_CMD) up --detach
 
 .PHONY: up-dev
 up-dev:
-	@$(MAKE) up target=debug app=$(app)
+	@echo "Starting services in development mode with hot reload..."
+	@$(MAKE) up target=development
+
+.PHONY: up-debug
+up-debug:
+	@echo "Starting services in debug mode..."
+	@$(MAKE) up target=debug
 
 .PHONY: up-prod
 up-prod:
-	@$(MAKE) up target=prod app=$(app)
+	@echo "Starting services in production mode..."
+	@$(MAKE) up target=production
+
+.PHONY: up-service
+up-service:
+	@echo "Starting single service: $(app)"
+	@TARGET=$(target) $(COMPOSE_CMD) up $(subst _,-,$(app)) --build --detach
+
+.PHONY: down
+down:
+	@echo "Stopping all services..."
+	@$(COMPOSE_CMD) down --volumes --remove-orphans
+
+.PHONY: down-clean
+down-clean:
+	@echo "Stopping and cleaning all services..."
+	@$(COMPOSE_CMD) down --volumes --remove-orphans --rmi local
+	@docker system prune -f
+
+.PHONY: logs
+logs:
+	@$(COMPOSE_CMD) logs $(subst _,-,$(app)) --follow
+
+.PHONY: logs-all
+logs-all:
+	@$(COMPOSE_CMD) logs --follow
+
+.PHONY: logs-tail
+logs-tail:
+	@$(COMPOSE_CMD) logs --follow --tail=100
+
+.PHONY: restart
+restart:
+	@echo "Restarting service: $(app)"
+	@$(COMPOSE_CMD) restart $(subst _,-,$(app))
+
+.PHONY: restart-all
+restart-all:
+	@echo "Restarting all services..."
+	@$(COMPOSE_CMD) restart
+
+.PHONY: ps
+ps:
+	@$(COMPOSE_CMD) ps
+
+.PHONY: stats
+stats:
+	@docker stats
+
+.PHONY: shell
+shell:
+	@echo "Opening shell in service: $(app)"
+	@$(COMPOSE_CMD) exec $(subst _,-,$(app)) sh
+
+# =============================================================================
+# Docker Health & Monitoring
+# =============================================================================
+
+.PHONY: health
+health:
+	@echo "Checking health of all services..."
+	@$(COMPOSE_CMD) ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
+
+.PHONY: health-service
+health-service:
+	@echo "Checking health of service: $(app)"
+	@docker inspect --format='{{.State.Health.Status}}' $(subst _,-,$(app)) || echo "No health check configured"
 
 
 

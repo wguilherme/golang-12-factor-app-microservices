@@ -1,0 +1,229 @@
+# =============================================================================
+# Docker Compose for Go Monorepo Microservices
+# Optimized for development and production deployment
+# =============================================================================
+
+# Docker Compose file (version obsolete - removed for modern Docker Compose)
+
+# =============================================================================
+# Shared configurations
+# =============================================================================
+x-common-variables: &common-variables
+  GOLANG_VERSION: 1.23
+  ALPINE_VERSION: 3.20
+  USER_ID: 65532
+  GROUP_ID: 65532
+
+x-common-service: &common-service
+  networks:
+    - microservices
+  restart: unless-stopped
+  env_file:
+    - ${ENV_FILE:-../../.env}
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  
+x-build-args: &build-args
+  context: ../../
+  dockerfile: devops/docker/Dockerfile.monorepo
+  cache_from:
+    - golang:1.23-alpine3.20
+  args:
+    <<: *common-variables
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+  
+  # Worker Flow Service
+  worker-flow:
+    <<: *common-service
+    container_name: microservice-worker-flow
+    build:
+      <<: *build-args
+      target: ${TARGET:-production}
+      args:
+        <<: *common-variables
+        APP: worker_flow
+        PORT: ${WORKER_FLOW_PORT:-8080}
+    environment:
+      - SERVICE_NAME=worker_flow
+      - SERVICE_PORT=${WORKER_FLOW_PORT:-8080}
+      - SERVICE_ENV=${ENVIRONMENT:-development}
+    ports:
+      - "${WORKER_FLOW_PORT:-8080}:${WORKER_FLOW_PORT:-8080}"
+      - "${WORKER_FLOW_DEBUG_PORT:-2345}:2345" # Debug port
+    volumes:
+      # Mount only in development
+      - type: bind
+        source: ../../
+        target: /workspace
+        consistency: cached
+        bind:
+          propagation: rshared
+      # Cache volumes for better performance
+      - go-mod-cache:/go-mod-cache
+      - go-build-cache:/go-cache
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${WORKER_FLOW_PORT:-8080}/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - shared-services
+      
+  # Worker Post Service  
+  worker-post:
+    <<: *common-service
+    container_name: microservice-worker-post
+    build:
+      <<: *build-args
+      target: ${TARGET:-production}
+      args:
+        <<: *common-variables
+        APP: worker_post
+        PORT: ${WORKER_POST_PORT:-8081}
+    environment:
+      - SERVICE_NAME=worker_post
+      - SERVICE_PORT=${WORKER_POST_PORT:-8081}
+      - SERVICE_ENV=${ENVIRONMENT:-development}
+    ports:
+      - "${WORKER_POST_PORT:-8081}:${WORKER_POST_PORT:-8081}"
+      - "${WORKER_POST_DEBUG_PORT:-2346}:2345" # Debug port
+    volumes:
+      # Mount only in development
+      - type: bind
+        source: ../../
+        target: /workspace
+        consistency: cached
+        bind:
+          propagation: rshared
+      # Cache volumes for better performance
+      - go-mod-cache:/go-mod-cache
+      - go-build-cache:/go-cache
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:${WORKER_POST_PORT:-8081}/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - shared-services
+
+  # =============================================================================
+  # Shared Services (Database, Cache, etc.)
+  # =============================================================================
+  shared-services:
+    image: busybox:latest
+    container_name: shared-services-placeholder
+    command: ["echo", "Shared services placeholder - replace with actual services"]
+    networks:
+      - microservices
+    # Example shared services:
+    # redis:
+    #   image: redis:7-alpine
+    #   container_name: redis-cache
+    #   ports:
+    #     - "6379:6379"
+    #   networks:
+    #     - microservices
+    #   volumes:
+    #     - redis-data:/data
+    #   healthcheck:
+    #     test: ["CMD", "redis-cli", "ping"]
+    #     interval: 30s
+    #     timeout: 10s
+    #     retries: 3
+    
+    # postgres:
+    #   image: postgres:15-alpine
+    #   container_name: postgres-db
+    #   environment:
+    #     POSTGRES_DB: microservices
+    #     POSTGRES_USER: ${DB_USER:-postgres}
+    #     POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    #   ports:
+    #     - "5432:5432"
+    #   networks:
+    #     - microservices
+    #   volumes:
+    #     - postgres-data:/var/lib/postgresql/data
+    #   healthcheck:
+    #     test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+    #     interval: 30s
+    #     timeout: 10s
+    #     retries: 3
+
+  # =============================================================================
+  # Monitoring & Observability (Optional)
+  # =============================================================================
+  
+  # Prometheus for metrics
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   networks:
+  #     - microservices
+  #   volumes:
+  #     - ./prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus-data:/prometheus
+
+  # Grafana for dashboards
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: grafana
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - microservices
+  #   volumes:
+  #     - grafana-data:/var/lib/grafana
+  #   environment:
+  #     - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+
+  # Jaeger for distributed tracing
+  # jaeger:
+  #   image: jaegertracing/all-in-one:latest
+  #   container_name: jaeger
+  #   ports:
+  #     - "16686:16686"
+  #     - "14268:14268"
+  #   networks:
+  #     - microservices
+  #   environment:
+  #     - COLLECTOR_OTLP_ENABLED=true
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  microservices:
+    driver: bridge
+    name: microservices-network
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  # Go build caches for faster rebuilds
+  go-mod-cache:
+    name: go-mod-cache
+  go-build-cache:
+    name: go-build-cache
+    
+  # Data volumes for shared services
+  # redis-data:
+  #   name: redis-data
+  # postgres-data:
+  #   name: postgres-data
+  # prometheus-data:
+  #   name: prometheus-data
+  # grafana-data:
+  #   name: grafana-data

@@ -1,0 +1,207 @@
+# =============================================================================
+# Multi-Service Monorepo Dockerfile
+# Supports building any service from the workspace
+# =============================================================================
+
+# Build arguments
+ARG APP=worker_flow
+ARG GOLANG_VERSION=1.23
+ARG ALPINE_VERSION=3.20
+ARG PORT=8080
+
+# Security arguments
+ARG USER_ID=65532
+ARG GROUP_ID=65532
+
+# =============================================================================
+# Base stage with Go toolchain
+# =============================================================================
+FROM golang:1.23-alpine3.20 AS base
+WORKDIR /workspace
+
+# Install build dependencies
+RUN apk --no-cache add ca-certificates git make curl
+
+# Set Go environment for better build performance
+ENV GOCACHE=/go-cache
+ENV GOMODCACHE=/go-mod-cache
+ENV CGO_ENABLED=0
+ENV GOOS=linux
+ENV GOARCH=amd64
+
+# =============================================================================
+# Dependencies stage - Cache Go modules
+# =============================================================================
+FROM base AS deps
+
+# Copy workspace configuration
+COPY go.work go.work.sum* ./
+
+# Copy all go.mod files for workspace resolution
+COPY shared/go.mod ./shared/
+COPY shared/go.sum* ./shared/ 
+COPY tools/go.mod ./tools/
+COPY tools/go.sum* ./tools/
+COPY services/worker_flow/go.mod ./services/worker_flow/
+COPY services/worker_post/go.mod ./services/worker_post/
+
+# Download and cache dependencies
+RUN --mount=type=cache,target=/go-mod-cache \
+    go work sync && \
+    go mod download all
+
+# =============================================================================
+# Source stage - Copy source code
+# =============================================================================
+FROM deps AS source
+
+# Copy shared code (most likely to change)
+COPY shared/ ./shared/
+
+# Copy tools
+COPY tools/ ./tools/
+
+# Copy all services source
+COPY services/ ./services/
+
+# =============================================================================
+# Build stage - Compile specific service
+# =============================================================================
+FROM source AS builder
+ARG APP
+
+# Create build directory
+RUN mkdir -p /workspace/build
+
+# Build the specific service with optimizations
+RUN --mount=type=cache,target=/go-cache \
+    --mount=type=cache,target=/go-mod-cache \
+    cd services/${APP} && \
+    go build -ldflags="-s -w -X main.version=$(date +%Y%m%d-%H%M%S)" \
+    -trimpath \
+    -o /workspace/build/${APP} .
+
+# Verify the binary exists and is executable
+RUN ls -la /workspace/build/${APP} && file /workspace/build/${APP}
+
+# =============================================================================
+# Test stage - Run tests for the specific service
+# =============================================================================
+FROM source AS tester
+ARG APP
+
+# Run tests with cache
+RUN --mount=type=cache,target=/go-cache \
+    --mount=type=cache,target=/go-mod-cache \
+    cd services/${APP} && \
+    go test -v ./... -coverprofile=coverage.out && \
+    go tool cover -func=coverage.out
+
+# =============================================================================
+# Security stage - Security scanning
+# =============================================================================
+FROM source AS security
+ARG APP
+
+# Install security tools
+RUN --mount=type=cache,target=/go-cache \
+    go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+# Run security scan
+RUN cd services/${APP} && \
+    gosec -fmt=json -out=/tmp/gosec-report.json ./... || true
+
+# =============================================================================
+# Development stage - For local development with hot reload
+# =============================================================================
+FROM base AS development
+ARG APP
+
+# Install development tools
+RUN --mount=type=cache,target=/go-cache \
+    go install github.com/go-delve/delve/cmd/dlv@latest && \
+    go install github.com/cosmtrek/air@latest
+
+# Copy source for development
+COPY . .
+
+# Expose debug port
+EXPOSE 2345
+
+# Create air config for hot reload
+RUN echo 'root = "services/'${APP}'"' > .air.toml && \
+    echo 'testdata_dir = "testdata"' >> .air.toml && \
+    echo 'tmp_dir = "tmp"' >> .air.toml && \
+    echo '' >> .air.toml && \
+    echo '[build]' >> .air.toml && \
+    echo '  args_bin = []' >> .air.toml && \
+    echo '  bin = "./tmp/main"' >> .air.toml && \
+    echo '  cmd = "go build -o ./tmp/main ."' >> .air.toml && \
+    echo '  delay = 1000' >> .air.toml && \
+    echo '  exclude_dir = ["assets", "tmp", "vendor", "testdata"]' >> .air.toml && \
+    echo '  exclude_file = []' >> .air.toml && \
+    echo '  exclude_regex = ["_test.go"]' >> .air.toml && \
+    echo '  exclude_unchanged = false' >> .air.toml && \
+    echo '  follow_symlink = false' >> .air.toml && \
+    echo '  full_bin = ""' >> .air.toml && \
+    echo '  include_dir = []' >> .air.toml && \
+    echo '  include_ext = ["go", "tpl", "tmpl", "html"]' >> .air.toml && \
+    echo '  kill_delay = "0s"' >> .air.toml && \
+    echo '  log = "build-errors.log"' >> .air.toml && \
+    echo '  send_interrupt = false' >> .air.toml && \
+    echo '  stop_on_root = false' >> .air.toml
+
+# Hot reload command
+CMD ["air", "-c", ".air.toml"]
+
+# =============================================================================
+# Debug stage - For debugging with delve
+# =============================================================================
+FROM development AS debug
+ARG APP
+
+# Expose debug port
+EXPOSE 2345
+
+# Debug command
+CMD cd services/${APP} && \
+    dlv debug --headless --listen=:2345 --api-version=2 --accept-multiclient
+
+# =============================================================================
+# Production stage - Minimal runtime image
+# =============================================================================
+FROM gcr.io/distroless/static:nonroot AS production
+ARG APP
+ARG PORT
+
+LABEL maintainer="Go Microservices Team"
+LABEL service="${APP}"
+LABEL version="1.0.0"
+
+WORKDIR /app
+
+# Copy the compiled binary
+COPY --from=builder /workspace/build/${APP} /app/service
+
+# Copy any static assets if needed
+# COPY --from=builder /workspace/services/${APP}/assets /app/assets
+
+# Use non-root user  
+ARG USER_ID
+ARG GROUP_ID
+USER ${USER_ID}:${GROUP_ID}
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/app/service", "--health-check"] || exit 1
+
+# Expose service port
+EXPOSE ${PORT}
+
+# Run the service
+ENTRYPOINT ["/app/service"]
+
+# =============================================================================
+# Default production target
+# =============================================================================
+FROM production AS default

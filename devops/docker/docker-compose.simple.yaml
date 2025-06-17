@@ -1,0 +1,43 @@
+# Simple Docker Compose for quick testing
+services:
+  worker-flow:
+    build:
+      context: ../../
+      dockerfile: devops/docker/Dockerfile
+      args:
+        APP: worker_flow
+        PORT: 8080
+      target: debug
+    container_name: worker-flow-simple
+    ports:
+      - "8080:8080"
+      - "2345:2345"
+    environment:
+      - WORKER_FLOW_PORT=8080
+    networks:
+      - microservices
+    volumes:
+      - "../../:/app"
+    
+  worker-post:
+    build:
+      context: ../../
+      dockerfile: devops/docker/Dockerfile  
+      args:
+        APP: worker_post
+        PORT: 8081
+      target: debug
+    container_name: worker-post-simple
+    ports:
+      - "8081:8081"
+      - "2346:2345"
+    environment:
+      - WORKER_POST_PORT=8081
+    networks:
+      - microservices
+    volumes:
+      - "../../:/app"
+
+networks:
+  microservices:
+    driver: bridge
