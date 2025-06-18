@@ -41,6 +41,13 @@ This is a Go microservices monorepo using Go Workspaces for 12-factor app princi
 - `make build-all` - Build all services
 - `make debug` - Start debugger on port 2345
 
+### Debug Options
+- **Local Debug**: Use VS Code configurations "Debug worker_flow (local)" or "Debug worker_post (local)"
+- **Remote Docker Debug**: 
+  1. Start services with `make up-debug`
+  2. Use VS Code configurations "Debug worker_flow (remote Docker)" or "Debug worker_post (remote Docker)"
+  3. Debug ports: worker_flow:2345, worker_post:2346
+
 ### Docker Operations
 - `make up` - Start all services with Docker Compose
 - `make up-debug` - Start in debug mode

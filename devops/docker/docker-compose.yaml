@@ -16,7 +16,7 @@ services:
     networks:
       - microservices
     restart: unless-stopped
-  
+
   worker-post:
     build:
       context: ../../
