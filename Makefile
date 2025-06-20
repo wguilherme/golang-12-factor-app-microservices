@@ -91,34 +91,13 @@ docker-build-service:
 up: down docker-build
 	@echo "🚀 Starting services with Hot Reload..."
 	@$(COMPOSE_CMD) up --detach
-	@echo ""
-	@echo "✅ Services running with hot reload:"
-	@echo ""
-	@echo "🔥 HOT RELOAD (Air):"
-	@echo "   📝 Edit files in services/ → automatic rebuild & restart"
-	@echo "   📊 Watch logs: make logs app=worker_flow"
-	@echo ""
-	@echo "🌐 SERVICES:"
-	@echo "   • worker_flow: http://localhost:8080/health/live"
-	@echo "   • worker_post: http://localhost:8081/health/live"
-	@echo ""
-	@echo "🐛 For debugging, use: make up-debug"
+	@echo "✅ Services running with hot reload"
 
 .PHONY: up-debug
 up-debug: down docker-build-debug
 	@echo "🚀 Starting services with Hot Reload + Debug support..."
 	@TARGET=debug $(COMPOSE_CMD) up --detach
-	@echo ""
-	@echo "✅ Services running with debug enabled:"
-	@echo ""
-	@echo "🐛 DEBUG ATTACH (Delve):"
-	@echo "   🎯 Set breakpoints in VS Code"
-	@echo "   🔗 Use: 'Debug worker_flow (remote)' configuration"
-	@echo "   📍 Debug ports: worker_flow:2345, worker_post:2346"
-	@echo ""
-	@echo "🌐 SERVICES:"
-	@echo "   • worker_flow: http://localhost:8080/health/live"
-	@echo "   • worker_post: http://localhost:8081/health/live"
+	@echo "✅ Services running with hot reload and debug support"
 
 .PHONY: up-service
 up-service:
@@ -192,7 +171,7 @@ health-service:
 .PHONY: dev-test
 dev-test:
 	@echo "Testing hot reload functionality..."
-	@echo "Current time: $(shell date)" 
+	@echo "Current time: $(shell date)"
 	@curl -s http://localhost:8080/health/live | jq . || echo "Service not responding"
 	@curl -s http://localhost:8081/health/live | jq . || echo "Service not responding"
 
@@ -207,11 +186,11 @@ dev-watch:
 # security
 .PHONY: security
 security: gosec gitleaks trivy govulncheck
-	@echo "\033[1;32mSecurity checks completed for all services\033[0m"
+	@echo "Security checks completed for all services"
 
 .PHONY: gosec
 gosec:
-	@echo "\033[1;34mRunning gosec for all microservices...\033[0m"
+	@echo "Running gosec for all microservices..."
 	@if ! command -v gosec &> /dev/null; then \
 		echo "Installing gosec..."; \
 		go install github.com/securego/gosec/v2/cmd/gosec@latest; \
@@ -219,9 +198,9 @@ gosec:
 	@mkdir -p reports/gosec
 	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
 	for app in $$APPS; do \
-		echo "\033[1;33mRunning gosec for $$app...\033[0m"; \
+		echo "Running gosec for $$app..."; \
 		gosec -fmt=json -out=reports/gosec/gosec-$$app-report.json ./services/$$app/... || \
-		(echo "\033[1;31mSecurity issues were detected in $$app!\033[0m"); \
+		(echo "Security issues were detected in $$app!"); \
 	done
 
 .PHONY: hadolint
@@ -238,22 +217,22 @@ gitleaks:
 
 .PHONY: trivy
 trivy:
-	@echo "\033[1;34mRunning trivy for all microservices...\033[0m"
+	@echo "Running trivy for all microservices..."
 	@mkdir -p reports/trivy
 	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
 	for app in $$APPS; do \
-		echo "\033[1;33mRunning trivy for $$app...\033[0m"; \
+		echo "Running trivy for $$app..."; \
 		docker build -t golang-ms-$$app:trivy --build-arg APP=$$app --target builder -f devops/docker/Dockerfile .; \
 		docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 		-v ${PWD}/reports/trivy:/reports aquasec/trivy --debug image \
 		--list-all-pkgs --exit-code 0 --ignore-unfixed -f json \
 		-o /reports/trivy-$$app-report.json golang-ms-$$app:trivy || \
-		(echo "\033[1;31mSecurity vulnerabilities were detected in $$app!\033[0m"); \
+		(echo "Security vulnerabilities were detected in $$app!"); \
 	done
 
 .PHONY: govulncheck
 govulncheck:
-	@echo "\033[1;34mRunning govulncheck for all microservices...\033[0m"
+	@echo "Running govulncheck for all microservices..."
 	@if ! command -v govulncheck &> /dev/null; then \
 		echo "Installing govulncheck..."; \
 		go install golang.org/x/vuln/cmd/govulncheck@latest; \
@@ -261,7 +240,7 @@ govulncheck:
 	@mkdir -p reports/govulncheck
 	@APPS=$$(echo $(appsForSecurity) | tr ',' ' '); \
 	for app in $$APPS; do \
-		echo "\033[1;33mRunning govulncheck for $$app...\033[0m"; \
+		echo "Running govulncheck for $$app..."; \
 		cd services/$$app && govulncheck -json ./... > ../../reports/govulncheck/govulncheck-$$app-report.json && cd ../.. || \
-		(echo "\033[1;31mVulnerabilities were detected in $$app!\033[0m"); \
+		(echo "Vulnerabilities were detected in $$app!"); \
 	done
