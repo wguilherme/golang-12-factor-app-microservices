@@ -1,15 +1,27 @@
+# makefile configs
 SHELL := /bin/sh
 .DEFAULT_GOAL := run
 
-env?=.env
+# general configs
 logging_level?=info
 app?=worker_flow # worker_flow or worker_post
 appsForSecurity?=worker_flow,worker_post
 target?=debug # debug or prod
 
+# monorepo configs
+COMPOSE_FILE := devops/docker/docker-compose.yaml
+COMPOSE_CMD := docker compose --env-file $(env) --file $(COMPOSE_FILE)
+
+# environment config
+env?=.env
 include $(env)
 
-# Go Workspace commands
+
+
+# =============================================================================
+# Go Workspace Commands
+# =============================================================================
+
 .PHONY: workspace-sync
 workspace-sync:
 	@go work sync
@@ -19,17 +31,7 @@ workspace-use:
 	@echo "Current workspace modules:"
 	@go list -m
 
-.PHONY: test
-test:
-	@echo "Running tests for all workspace modules..."
-	@go work sync
-	@CGO_ENABLED=0 GOOS=linux go test ./... -coverprofile ./cover.out
-	@go tool cover -html=cover.out
-
-.PHONY: test-service
-test-service:
-	@echo "Testing service: $(app)"
-	@cd services/$(app) && CGO_ENABLED=0 GOOS=linux go test ./... -v
+vices/$(app) && CGO_ENABLED=0 GOOS=linux go test ./... -v
 
 .PHONY: run
 run:
@@ -49,8 +51,8 @@ debug:
 		--accept-multiclient \
 			exec ./build/$(app) -logging_level=$(logging_level)
 
-.PHONY: build
-build:
+.PHONY: build-app
+build-app:
 	@echo "Building service: $(app)"
 	@mkdir -p build
 	@cd services/$(app) && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$(app) .
@@ -65,14 +67,28 @@ build-all:
 		cd services/$$app && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$$app . && cd ../..; \
 	done
 
+
+# =============================================================================
+# Test Commands
+# =============================================================================
+
+.PHONY: test
+test:
+	@echo "Running tests for all workspace modules..."
+	@go work sync
+	@CGO_ENABLED=0 GOOS=linux go test ./... -coverprofile ./cover.out
+	@go tool cover -html=cover.out
+
+.PHONY: test-service
+test-service:
+	@echo "Testing service: $(app)"
+	@cd ser
+
 # =============================================================================
 # Docker Commands - Monorepo Optimized
 # =============================================================================
 
-COMPOSE_FILE := devops/docker/docker-compose.yaml
-COMPOSE_CMD := docker compose --env-file $(env) --file $(COMPOSE_FILE)
-
-.PHONY: docker-build
+.PHONY: docker
 docker-build:
 	@echo "Building all services..."
 	@$(COMPOSE_CMD) build --parallel
@@ -89,15 +105,15 @@ docker-build-service:
 
 .PHONY: up
 up: down docker-build
-	@echo "🚀 Starting services with Hot Reload..."
+	@echo "Starting services with Hot Reload..."
 	@$(COMPOSE_CMD) up --detach
-	@echo "✅ Services running with hot reload"
+	@echo "Services running with hot reload"
 
 .PHONY: up-debug
 up-debug: down docker-build-debug
-	@echo "🚀 Starting services with Hot Reload + Debug support..."
+	@echo "Starting services with Hot Reload + Debug support..."
 	@TARGET=debug $(COMPOSE_CMD) up --detach
-	@echo "✅ Services running with hot reload and debug support"
+	@echo "Services running with hot reload and debug support"
 
 .PHONY: up-service
 up-service:
@@ -122,10 +138,6 @@ logs:
 .PHONY: logs-all
 logs-all:
 	@$(COMPOSE_CMD) logs --follow
-
-.PHONY: logs-tail
-logs-tail:
-	@$(COMPOSE_CMD) logs --follow --tail=100
 
 .PHONY: restart
 restart:
@@ -159,16 +171,11 @@ health:
 	@echo "Checking health of all services..."
 	@$(COMPOSE_CMD) ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
-.PHONY: health-service
-health-service:
-	@echo "Checking health of service: $(app)"
-	@docker inspect --format='{{.State.Health.Status}}' $(subst _,-,$(app)) || echo "No health check configured"
 
 
-
-
-
-# security
+# =============================================================================
+# Security Checks
+# ===========================================================================
 .PHONY: security
 security: gosec gitleaks trivy govulncheck
 	@echo "Security checks completed for all services"
