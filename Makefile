@@ -164,21 +164,6 @@ health-service:
 	@echo "Checking health of service: $(app)"
 	@docker inspect --format='{{.State.Health.Status}}' $(subst _,-,$(app)) || echo "No health check configured"
 
-# =============================================================================
-# Hot Reload Development Commands
-# =============================================================================
-
-.PHONY: dev-test
-dev-test:
-	@echo "Testing hot reload functionality..."
-	@echo "Current time: $(shell date)"
-	@curl -s http://localhost:8080/health/live | jq . || echo "Service not responding"
-	@curl -s http://localhost:8081/health/live | jq . || echo "Service not responding"
-
-.PHONY: dev-watch
-dev-watch:
-	@echo "Watching logs for hot reload changes..."
-	@$(COMPOSE_CMD) logs --follow --tail=50
 
 
 
