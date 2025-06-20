@@ -1,4 +1,7 @@
-# makefile configs
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+
 SHELL := /bin/sh
 .DEFAULT_GOAL := run
 
@@ -15,8 +18,6 @@ COMPOSE_CMD := docker compose --env-file $(env) --file $(COMPOSE_FILE)
 # environment config
 env?=.env
 include $(env)
-
-
 
 # =============================================================================
 # Go Workspace Commands
@@ -66,7 +67,6 @@ build-all:
 		echo "Building $$app..."; \
 		cd services/$$app && CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o ../../build/$$app . && cd ../..; \
 	done
-
 
 # =============================================================================
 # Test Commands
@@ -171,8 +171,6 @@ health:
 	@echo "Checking health of all services..."
 	@$(COMPOSE_CMD) ps --format "table {{.Name}}\t{{.Status}}\t{{.Ports}}"
 
-
-
 # =============================================================================
 # Security Checks
 # ===========================================================================
@@ -236,3 +234,5 @@ govulncheck:
 		cd services/$$app && govulncheck -json ./... > ../../reports/govulncheck/govulncheck-$$app-report.json && cd ../.. || \
 		(echo "Vulnerabilities were detected in $$app!"); \
 	done
+
+# =============================================================================
